@@ -16,9 +16,10 @@
 
 		<link rel="stylesheet" href="css/reveal.min.css">
 		<link rel="stylesheet" href="css/theme/default.css" id="theme">
+    <link rel="stylesheet" href="http://percolate.com/cdn/css/0bc71919f74d7a60bbb75f86a980469b/percolate.css" />
 
 		<!-- For syntax highlighting -->
-		<link rel="stylesheet" href="lib/css/zenburn.css">
+		<link rel="stylesheet" href="lib/css/tomorrow.css">
 
 		<!-- If the query includes 'print-pdf', use the PDF print sheet -->
 		<script>
@@ -35,334 +36,465 @@
 		<div class="reveal">
 			<div class="slides">
 
-				<section data-markdown>
-					<script type="text/template">
-						# Opensourcing redset
+        <section>
+        <h2>opensourcing redset</h2>
 
-            @jamesob (@percolate.com)
-					</script>
+        <p>@jamesob<br />
+        (@percolate.com)
+        </p>
+        <img width="10%" height="10%" src="./drip.png" alt="percolate is cool" />
 				</section>
+
+        <section>
+        <h2>topics</h2>
+
+        <ul>
+          <li class="fragment">redset</li>
+          <li class="fragment">why another package?</li>
+          <li class="fragment">grooming for opensource</li>
+          <li class="fragment">releasing into the wild</li>
+        </ul>
+        </section>
+
+        <section>
+        <h2>but first</h2>
+
+        <p>a little background on the codebase at Percolate</p>
+        </section>
+        
+        <section>
+        <h2>code size</h2>
+
+        <p>Multiple repos, a few services, but we do have a core codebase</p>
+
+        <pre class="fragment"><code data-trim>
+          http://cloc.sourceforge.net v 1.56 
+          ----------------------------------------------------
+          Language                      files             code
+          ----------------------------------------------------
+          Python                          750           116113
+          HTML                            569           105824
+          Javascript                      956            70565
+          SQL                              32             2518
+          CSS                              13             2379
+          YAML                              2              848
+          Bourne Again Shell                1               24
+          Bourne Shell                      3               12
+          ----------------------------------------------------
+          SUM:                           2326           298283
+          ----------------------------------------------------
+        </code></pre>
+
+        <p class="fragment">
+          so: roughly 100k lines of python<br />
+          (including tests &amp; doc)
+        </p>
+        </section>
+
+        <section>
+          <h2>build times</h2>
+          <ul>
+            <li class='fragment'>we really like CI</li>
+            <li class='fragment'>jenkins builds every candidate commit</li>
+            <li class='fragment'>a full build on master takes about 23 minutes</li>
+          </ul>
+        </section>
+
+        <section>
+          <h2>in summary</h2>
+          <p><ul>
+          <li class='fragment'>a lot of code in one package &mdash; indicates high coupling</li>
+          <li class='fragment'>builds take a fair amount of time</li>
+          </ul></p>
+
+          <p class='fragment'>not a crisis, but not a trend to continue</p>
+          <p class='fragment'>how do we address this?</p>
+          </p>
+        </section>
+
+        <section>
+          <h2>the benefits of decomposition</h2>
+          <p><ul>
+            <li class='fragment'>design 101: extract and package general functionality
+              <ul>
+                <li class='fragment'>avoids redundant testing</li>
+                <li class='fragment'>coverage metrics become useful</li>
+                <li class='fragment'>maintenance becomes easier on both ends</li>
+                <li class='fragment'>costs a little extra overhead, but libraries much less so than services</li>
+              </ul>
+            </li>
+          </ul></p>
+        </section>
+
+        <section>
+          <h2>a good candidate</h2>
+
+          <p>
+            <ul>
+              <li class='fragment'>so where's our "general functionality"?</li>
+              <li class='fragment'>we have this class hierarchy that handles our distributed taskset management
+                <ul>
+                  <li class='fragment'>...that sounds pretty general</li>
+                  <li class='fragment'>good candidate for extraction and packaging!</li>
+                </ul>
+              </li>
+            </ul>
+          </p>
+        </section>
+           
+        <section>
+          <h2>hasn't someone already done this?</h2>
+
+          <p>
+            <ul>
+              <li class='fragment'>step #1 when packaging a general solution for something: check to see if someone else has already tackled it</li>
+              <li class='fragment'>odds are, someone has
+                <ul>
+                  <li class='fragment'>great: less work for you</li>
+                  <li class='fragment'>fit isn't exact? contribute or wrap: be hesitant to fork</li>
+                </ul>
+              </li>
+            </ul>
+          </p>
+
+          <h4 class='fragment'>how to check</h4>
+            <ul>
+              <li class='fragment'>generous amounts of googling</li>
+              <li class='fragment'>ask your team</li>
+              <li class='fragment'>check pypi! (it <em>is</em> searchable)</li>
+            </ul>
+        </section>
+                  
+        <section>
+          <h2>so let's talk about <code>redset</code></h2>
+
+          <p>
+            <ul>
+              <li class='fragment'>Simple sorted sets backed by Redis that can be used to coordinate distributed systems</li>
+              <li class='fragment'>solves different problems than conventional queuing solutions (e.g., celery, rq)</li>
+              <li class='fragment'>mimics Python's builtin <code>set</code> interface</li>
+              <li class='fragment'>lightweight, no daemons or client processes to run</li>
+              <li class='fragment'>well tested</li>
+              <li class='fragment'>
+                on pypi, github.com/percolate/redset<br />
+                <a class="image" href="https://github.com/percolate/redset" target="_blank">
+                  <img src="./redset.jpg" alt="redset">
+                </a>
+              </li>
+            </ul>
+          </p>
+
+        </section>
+
+        <section>
+          <h2>quick example</h2>
+   
+          <pre class="fragment"><code data-trim>
+import json
+from redset import TimeSortedSet
+          </code></pre>
+                              
+          <pre class="fragment"><code data-trim>
+ss = TimeSortedSet(redis.Redis(), 'so-much-work', serializer=json)
+ss.add({'task': 1})       
+ss.add({'task': 2})       
+          </code></pre>
+                        
+          <pre class="fragment"><code data-trim>
+# from some other process...
+ss.pop()  # -> {'task': 1}
+          </code></pre>
+                        
+          <pre class='fragment'><code data-trim class="python">
+# monitor age of oldest task in set
+send_to_graphite('work-delay', time.time() - ss.peek_score())
+          </code></pre>
+          <img  class='fragment' src="./graphite.jpg" alt="monitoring">
+        </section>
+        
+        <section>
+          <h2>usecases</h2>
+            <p><ul>
+              <li class='fragment'>prioritized web scraping tasks generated from multiple sources, with duplicates</li>
+              <li class='fragment'>expensive analytics computations gen'd from multiple sources, again with duplicates</li>
+              <li class='fragment'>everything needs to be monitored</li>
+              <li class='fragment'>I'm pretty sure these problems aren't specific to Percolate...</li>
+            </ul></p>
+        </section>
+
+        <section>
+          <h2>surprise</h2>
+          <p>
+            lightweight, multiprocess-friendly sets are useful
+            all over the GD place
+          </p>
+        </section>
+
+        <section>
+          <h2>unexpected bonus usecases</h2>
+          <p>
+          <ul>
+            <li class='fragment'>managing QA hubot's branch queue</li>
+            <li class='fragment'>managing our benchmarking tool's queue</li>
+          </ul>
+          </p>
+
+          <p class='fragment'>these opportunities for reuse were only realized after the package
+          was broken out of the main app</p>
+        </section>
+
+        <section>
+          <h2><code>coverage</code> is useful again!</h2>
+
+          <pre class="fragment"><code data-trim>
+nosetests --with-cov --cov-report term-missing --cov redset tests
+
+.....................
+---------- coverage: platform linux2, python 2.7.4-final-0 --------
+Name                Stmts   Miss  Cover   Missing
+-------------------------------------------------
+redset/__init__         2      0   100%   
+redset/exceptions       2      0   100%   
+redset/interfaces       5      0   100%   
+redset/locks           25      2    92%   65, 70
+redset/sets            90      6    93%   52, 61, 262-263, 274-275
+-------------------------------------------------
+TOTAL                 124      8    94%   
+-------------------------------------------------------------------
+Ran 21 tests in 2.152s
+
+OK
+          </code></pre>
+                        
+        </section>
+
+        <section>
+        <h2>If this dead horse still needs beating</h2>
+        
+        <p class='fragment'>
+        there are real benefits to
+        modularizing + packaging
+        </p>
+        <p>
+          <ul>
+            <li class='fragment'>more reuse, less needless work</li>
+            <li class='fragment'>increased ease of maintenance</li>
+            <li class='fragment'>less wasted time testing things that haven't changed</li>
+          </ul>
+        </p>
+        </section>
+   
+        <section>
+        <h2>grooming for opensource</h2>
+
+        <ul>
+          <li class="fragment">after separating, next logical step is to opensource redset
+            <ul>
+              <li class="fragment">opening up code is a boon for businesses</li>
+              <li class="fragment">(someone is improving your tooling <em>for free</em>)</li>
+            </ul>
+          </li>
+          <li class="fragment">a few boxes need to be checked before making a package public</li>
+        </ul>
+
+        <p class='fragment'>(this section is a brief rehash of <a href="http://jeffknupp.com/blog/2013/08/16/open-sourcing-a-python-project-the-right-way">this excellent article</a> by Jeff Knupp)</p>
+        </section>
+
+       <section>
+        <h2>the big three</h2>
+
+        <ul>
+          <li class="fragment">package structure</li>
+          <li class="fragment">tests</li>
+          <li class="fragment">docs</li>
+        </ul>
+       </section>
+
+       <section>
+        <h2>basic project structure</h2>
+ 
+          <pre><code data-trim class="no-highlight">
+redset
+├── docs                       # sphinx
+│   ├── conf.py
+│   ├── index.rst
+│   ├── Makefile
+│   ├── _static
+│   └── _templates
+├── HISTORY.md                 # changelog
+├── LICENSE   
+├── README.md  
+├── redset                     # python package
+│   ├── __init__.py
+│   ├── exceptions.py
+│   ├── interfaces.py
+│   ├── locks.py
+│   └── sets.py
+├── setup.py
+├── requirements.txt           # if we have dependencies
+└── tests                      # mandatory
+    ├── __init__.py
+    ├── test_concurrency.py
+    └── test_sets.py
+          </code></pre>
+
+        <p class='fragment'>be sure to spend some time on your 
+        <a href="http://docs.python.org/2/distutils/setupscript.html">setup.py</a>,
+        as this will control your package's pypi presence.
+        </p>
+       </section>
+
+       <section>
+         <h2>documenting</h2>
+
+         <ul>
+           <li class="fragment">sphinx is the defacto choice
+             <ul>
+               <li class="fragment">reasonably easy to set up</li>
+               <li class="fragment">keeps documentation very local to code with 
+                 <code>automodule</code>, <code>autoclass</code>, et al</li>
+               <li class="fragment">integration with ReadTheDocs</li>
+             </ul>
+           </li>
+           <li class="fragment">ReST is kind of a pain (vs. googley style)
+             <ul>
+               <li class="fragment">less readable in source</li>
+               <li class="fragment">but worth it if your public interface is well-defined and stable</li>
+             </ul>
+           </li>
+         </ul>
+       </section>
+
+       <section>
+
+        <h2>tests</h2>
+        
+        <ul>
+          <li class="fragment">write 'em</li>
+          <li class="fragment">important signal to potential users</li>
+          <li class="fragment">use <code>coverage</code> as a guide</li>
+        </ul>
+       </section>
+
+
+        <section>
+          <h2>shipping it</h2>
+
+          <p>your package is all dolled up; now what?</p>
+        </section>
+ 
+        <section>
+          <h2>pushing to a dvcs service</h2>
+
+          <ul>
+            <li class="fragment">something with an issue tracking system built in</li>
+            <li class="fragment">github &amp; bitbucket are good choices</li>
+            <li class="fragment">reference this repo in your <code>setup.py</code></li>
+          </ul>
+          <p></p>
+        </section>
+  
+        <section>
+          <h2>publishing on pypi</h2>
+
+          <p>easier than it sounds</p>
+                     
+          <pre class="fragment"><code data-trim class="bash">
+python setup.py register
+python setup.py sdist upload
+# boom, done
+          </code></pre>
+
+          <ul>
+            <li class="fragment">
+            be sure you've established a version in setup.py according to 
+            <a href="http://www.python.org/dev/peps/pep-0440/">PEP 440</a></li>
+          </ul>
+
+           
+        </section>
+   
+        <section>
+          <h2>travis-ci</h2>
+
+          <p>CI is awesome. travis is reaallly awesome.</p>
+          <ul>
+            <li class="fragment">free, hosted CI that integrates nicely with github</li>
+            <li class="fragment">supports external services, e.g. redis, mysql</li>
+            <li class="fragment">pretty "build passed" button for your README<br />
+            <img height=50% src="./passed.jpg" alt="yaay"></li>
+            <li class="fragment">end-to-end test that your package can be downloaded, installed, and used</li>
+          </ul>
+        </section>
+   
+        <section>
+          <h2>configuring travis</h2>
+            Sample configuration:
+     
+          <pre class="fragment"><code data-trim>
+language: python
+python:
+  - "2.7"
+# requires redis-server for multiprocess tests
+services:
+  - redis-server
+# command to install dependencies
+install: 
+  - "pip install redis"
+  - "pip install ."
+# command to run tests
+script: nosetests
+          </code></pre>
+          <p class='fragment'>my dog literally wrote this config file</p>
+          <p class='fragment'>(and he even hates YAML)</p>
+          <p class='fragment'>benefit/effort ratio is really high</p>
+
+        </section>
+
+        <section>
+        <h2>ReadTheDocs</h2>
+        
+        <ul>
+          <li class="fragment">continuous document integration service, dovetails with github</li>
+          <li class="fragment">renders sphinx very nicely</li>
+          <li class="fragment">easy to configure</li>
+        </ul>
+
+        </section>
              
-      <!-- the reveal business
+        <section>
+        <h2>signaling</h2>
 
-			<!-- Any section element inside of this container is displayed as a slide -->
-				<section>
-					<h1>Reveal.js</h1>
-					<h3>HTML Presentations Made Easy</h3>
-					<p>
-						<small>Created by <a href="http://hakim.se">Hakim El Hattab</a> / <a href="http://twitter.com/hakimel">@hakimel</a></small>
-					</p>
-				</section>
+        <p>these peripheral services aren't just niceties</p>
+        
+        <ul>
+          <li class="fragment">you are signaling care and commitment to other engineers</li>
+          <li class="fragment">people will be more likely to adopt your library</li>
+        </ul>
 
-				<section>
-					<h2>Heads Up</h2>
-					<p>
-						reveal.js is a framework for easily creating beautiful presentations using HTML. You'll need a browser with
-						support for CSS 3D transforms to see it in its full glory.
-					</p>
+        </section>
 
-					<aside class="notes">
-						Oh hey, these are some notes. They'll be hidden in your presentation, but you can see them if you open the speaker notes window (hit 's' on your keyboard).
-					</aside>
-				</section>
 
-				<!-- Example of nested vertical slides -->
-				<section>
-					<section>
-						<h2>Vertical Slides</h2>
-						<p>
-							Slides can be nested inside of other slides,
-							try pressing <a href="#" class="navigate-down">down</a>.
-						</p>
-						<a href="#" class="image navigate-down">
-							<img width="178" height="238" src="https://s3.amazonaws.com/hakim-static/reveal-js/arrow.png" alt="Down arrow">
-						</a>
-					</section>
-					<section>
-						<h2>Basement Level 1</h2>
-						<p>Press down or up to navigate.</p>
-					</section>
-					<section>
-						<h2>Basement Level 2</h2>
-						<p>Cornify</p>
-						<a class="test" href="http://cornify.com">
-							<img width="280" height="326" src="https://s3.amazonaws.com/hakim-static/reveal-js/cornify.gif" alt="Unicorn">
-						</a>
-					</section>
-					<section>
-						<h2>Basement Level 3</h2>
-						<p>That's it, time to go back up.</p>
-						<a href="#/2" class="image">
-							<img width="178" height="238" src="https://s3.amazonaws.com/hakim-static/reveal-js/arrow.png" alt="Up arrow" style="-webkit-transform: rotate(180deg);">
-						</a>
-					</section>
-				</section>
+        <section>
+        <h2>in summary</h2>
 
-				<section>
-					<h2>Slides</h2>
-					<p>
-						Not a coder? No problem. There's a fully-featured visual editor for authoring these, try it out at <a href="http://slid.es" target="_blank">http://slid.es</a>.
-					</p>
-				</section>
+        <ul>
+          <li class="fragment">being diligent about modularizing pays off</li>
+          <li class="fragment">redset is a small, flexible Python library for 
+          deduplicating and distributing work</li>
+          <li class="fragment">there are great tools for opensourcing a project the right way</li>
+        </ul>
+        </section>
+         
+        <section>
+        <h2>thanks for listening!</h2>
 
-				<section>
-					<h2>Point of View</h2>
-					<p>
-						Press <strong>ESC</strong> to enter the slide overview.
-					</p>
-					<p>
-						Hold down alt and click on any element to zoom in on it using <a href="http://lab.hakim.se/zoom-js">zoom.js</a>. Alt + click anywhere to zoom back out.
-					</p>
-				</section>
-
-				<section>
-					<h2>Works in Mobile Safari</h2>
-					<p>
-						Try it out! You can swipe through the slides and pinch your way to the overview.
-					</p>
-				</section>
-
-				<section>
-					<h2>Marvelous Unordered List</h2>
-					<ul>
-						<li>No order here</li>
-						<li>Or here</li>
-						<li>Or here</li>
-						<li>Or here</li>
-					</ul>
-				</section>
-
-				<section>
-					<h2>Fantastic Ordered List</h2>
-					<ol>
-						<li>One is smaller than...</li>
-						<li>Two is smaller than...</li>
-						<li>Three!</li>
-					</ol>
-				</section>
-
-				<section data-markdown>
-					<script type="text/template">
-						## Markdown support
-
-						For those of you who like that sort of thing. Instructions and a bit more info available [here](https://github.com/hakimel/reveal.js#markdown).
-
-						```
-						<section data-markdown>
-						  ## Markdown support
-
-						  For those of you who like that sort of thing.
-						  Instructions and a bit more info available [here](https://github.com/hakimel/reveal.js#markdown).
-						</section>
-						```
-					</script>
-				</section>
-
-				<section id="transitions">
-					<h2>Transition Styles</h2>
-					<p>
-						You can select from different transitions, like: <br>
-						<a href="?transition=cube#/transitions">Cube</a> -
-						<a href="?transition=page#/transitions">Page</a> -
-						<a href="?transition=concave#/transitions">Concave</a> -
-						<a href="?transition=zoom#/transitions">Zoom</a> -
-						<a href="?transition=linear#/transitions">Linear</a> -
-						<a href="?transition=fade#/transitions">Fade</a> -
-						<a href="?transition=none#/transitions">None</a> -
-						<a href="?#/transitions">Default</a>
-					</p>
-				</section>
-
-				<section id="themes">
-					<h2>Themes</h2>
-					<p>
-						Reveal.js comes with a few themes built in: <br>
-						<a href="?#/themes">Default</a> -
-						<a href="?theme=sky#/themes">Sky</a> -
-						<a href="?theme=beige#/themes">Beige</a> -
-						<a href="?theme=simple#/themes">Simple</a> -
-						<a href="?theme=serif#/themes">Serif</a> -
-						<a href="?theme=night#/themes">Night</a> <br>
-						<a href="?theme=moon.css#/themes">Moon</a> -
-						<a href="?theme=simple.css#/themes">Simple</a> -
-						<a href="?theme=solarized.css#/themes">Solarized</a>
-					</p>
-					<p>
-						<small>
-							* Theme demos are loaded after the presentation which leads to flicker. In production you should load your theme in the <code>&lt;head&gt;</code> using a <code>&lt;link&gt;</code>.
-						</small>
-					</p>
-				</section>
-
-				<section>
-					<h2>Global State</h2>
-					<p>
-						Set <code>data-state="something"</code> on a slide and <code>"something"</code>
-						will be added as a class to the document element when the slide is open. This lets you
-						apply broader style changes, like switching the background.
-					</p>
-				</section>
-
-				<section data-state="customevent">
-					<h2>Custom Events</h2>
-					<p>
-						Additionally custom events can be triggered on a per slide basis by binding to the <code>data-state</code> name.
-					</p>
-					<pre><code data-trim contenteditable style="font-size: 18px; margin-top: 20px;">
-Reveal.addEventListener( 'customevent', function() {
-	console.log( '"customevent" has fired' );
-} );
-					</code></pre>
-				</section>
-
-				<section>
-					<section data-background="#007777">
-						<h2>Slide Backgrounds</h2>
-						<p>
-							Set <code>data-background="#007777"</code> on a slide to change the full page background to the given color. All CSS color formats are supported.
-						</p>
-						<a href="#" class="image navigate-down">
-							<img width="178" height="238" src="https://s3.amazonaws.com/hakim-static/reveal-js/arrow.png" alt="Down arrow">
-						</a>
-					</section>
-					<section data-background="https://s3.amazonaws.com/hakim-static/reveal-js/arrow.png">
-						<h2>Image Backgrounds</h2>
-						<pre><code>&lt;section data-background="image.png"&gt;</code></pre>
-					</section>
-					<section data-background="https://s3.amazonaws.com/hakim-static/reveal-js/arrow.png" data-background-repeat="repeat" data-background-size="100px">
-						<h2>Repeated Image Backgrounds</h2>
-						<pre><code style="word-wrap: break-word;">&lt;section data-background="image.png" data-background-repeat="repeat" data-background-size="100px"&gt;</code></pre>
-					</section>
-				</section>
-
-				<section data-transition="linear" data-background="#4d7e65" data-background-transition="slide">
-					<h2>Background Transitions</h2>
-					<p>
-						Pass reveal.js the <code>backgroundTransition: 'slide'</code> config argument to make backgrounds slide rather than fade.
-					</p>
-				</section>
-
-				<section data-transition="linear" data-background="#8c4738" data-background-transition="slide">
-					<h2>Background Transition Override</h2>
-					<p>
-						You can override background transitions per slide by using <code>data-background-transition="slide"</code>.
-					</p>
-				</section>
-
-				<section>
-					<h2>Clever Quotes</h2>
-					<p>
-						These guys come in two forms, inline: <q cite="http://searchservervirtualization.techtarget.com/definition/Our-Favorite-Technology-Quotations">
-						&ldquo;The nice thing about standards is that there are so many to choose from&rdquo;</q> and block:
-					</p>
-					<blockquote cite="http://searchservervirtualization.techtarget.com/definition/Our-Favorite-Technology-Quotations">
-						&ldquo;For years there has been a theory that millions of monkeys typing at random on millions of typewriters would
-						reproduce the entire works of Shakespeare. The Internet has proven this theory to be untrue.&rdquo;
-					</blockquote>
-				</section>
-
-				<section>
-					<h2>Pretty Code</h2>
-					<pre><code data-trim contenteditable>
-function linkify( selector ) {
-  if( supports3DTransforms ) {
-
-    var nodes = document.querySelectorAll( selector );
-
-    for( var i = 0, len = nodes.length; i &lt; len; i++ ) {
-      var node = nodes[i];
-
-      if( !node.className ) {
-        node.className += ' roll';
-      }
-    }
-  }
-}
-					</code></pre>
-					<p>Courtesy of <a href="http://softwaremaniacs.org/soft/highlight/en/description/">highlight.js</a>.</p>
-				</section>
-
-				<section>
-					<h2>Intergalactic Interconnections</h2>
-					<p>
-						You can link between slides internally,
-						<a href="#/2/3">like this</a>.
-					</p>
-				</section>
-
-				<section>
-					<section>
-						<h2>Fragmented Views</h2>
-						<p>Hit the next arrow...</p>
-						<p class="fragment">... to step through ...</p>
-						<ol>
-							<li class="fragment"><code>any type</code></li>
-							<li class="fragment"><em>of view</em></li>
-							<li class="fragment"><strong>fragments</strong></li>
-						</ol>
-
-						<aside class="notes">
-							This slide has fragments which are also stepped through in the notes window.
-						</aside>
-					</section>
-					<section>
-						<h2>Fragment Styles</h2>
-						<p>There's a few styles of fragments, like:</p>
-						<p class="fragment grow">grow</p>
-						<p class="fragment shrink">shrink</p>
-						<p class="fragment roll-in">roll-in</p>
-						<p class="fragment fade-out">fade-out</p>
-						<p class="fragment highlight-red">highlight-red</p>
-						<p class="fragment highlight-green">highlight-green</p>
-						<p class="fragment highlight-blue">highlight-blue</p>
-					</section>
-				</section>
-
-				<section>
-					<h2>Spectacular image!</h2>
-					<a class="image" href="http://lab.hakim.se/meny/" target="_blank">
-						<img width="320" height="299" src="http://s3.amazonaws.com/hakim-static/portfolio/images/meny.png" alt="Meny">
-					</a>
-				</section>
-
-				<section>
-					<h2>Export to PDF</h2>
-					<p>Presentations can be <a href="https://github.com/hakimel/reveal.js#pdf-export">exported to PDF</a>, below is an example that's been uploaded to SlideShare.</p>
-					<iframe id="slideshare" src="http://www.slideshare.net/slideshow/embed_code/13872948" width="455" height="356" style="margin:0;overflow:hidden;border:1px solid #CCC;border-width:1px 1px 0;margin-bottom:5px" allowfullscreen> </iframe>
-					<script>
-						document.getElementById('slideshare').attributeName = 'allowfullscreen';
-					</script>
-				</section>
-
-				<section>
-					<h2>Take a Moment</h2>
-					<p>
-						Press b or period on your keyboard to enter the 'paused' mode. This mode is helpful when you want to take distracting slides off the screen
-						during a presentation.
-					</p>
-				</section>
-
-				<section>
-					<h2>Stellar Links</h2>
-					<ul>
-						<li><a href="http://slid.es">Try the online editor</a></li>
-						<li><a href="https://github.com/hakimel/reveal.js">Source code on GitHub</a></li>
-						<li><a href="http://twitter.com/hakimel">Follow me on Twitter</a></li>
-					</ul>
-				</section>
-
-				<section>
-					<h1>THE END</h1>
-					<h3>BY Hakim El Hattab / hakim.se</h3>
-				</section>
-
-        end reveal business 
-        -->
+        </section>
+             
 
 			</div>
-
 		</div>
-
+       
 		<script src="lib/js/head.min.js"></script>
 		<script src="js/reveal.min.js"></script>
 
